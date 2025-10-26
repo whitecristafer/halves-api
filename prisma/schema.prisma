@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  username       String    @unique
+  passwordHash   String
+  name           String?
+  bio            String?
+  birthday       DateTime?
+  gender         Gender?
+  city           String?
+  country        String?
+  locationLat    Float?
+  locationLng    Float?
+  lastActiveAt   DateTime? @default(now())
+  isVerified     Boolean   @default(false)
+  onboardingDone Boolean   @default(false)
+  interests      String[]  // Postgres text[]
+  photos         Photo[]
+  preferences    Preferences?
+  interactionsFrom Interaction[] @relation("interactions_from")
+  interactionsTo   Interaction[] @relation("interactions_to")
+  matchesA       Match[]   @relation("matches_a")
+  matchesB       Match[]   @relation("matches_b")
+  messages       Message[]
+  blocksByMe     Block[]   @relation("blocks_from")
+  blocksToMe     Block[]   @relation("blocks_to")
+  reportsByMe    Report[]  @relation("reports_from")
+  reportsToMe    Report[]  @relation("reports_to")
+  refreshTokens  RefreshToken[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  url       String
+  order     Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, order])
+}
+
+model Preferences {
+  id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String   @unique
+  ageMin       Int      @default(18)
+  ageMax       Int      @default(60)
+  distanceKm   Int      @default(100)
+  showGenders  Gender[]
+  onlyVerified Boolean  @default(false)
+}
+
+model Interaction {
+  id          String   @id @default(cuid())
+  fromUser    User     @relation("interactions_from", fields: [fromUserId], references: [id], onDelete: Cascade)
+  fromUserId  String
+  toUser      User     @relation("interactions_to", fields: [toUserId], references: [id], onDelete: Cascade)
+  toUserId    String
+  isLike      Boolean
+  createdAt   DateTime @default(now())
+
+  @@unique([fromUserId, toUserId])
+}
+
+model Match {
+  id        String   @id @default(cuid())
+  userA     User     @relation("matches_a", fields: [userAId], references: [id], onDelete: Cascade)
+  userAId   String
+  userB     User     @relation("matches_b", fields: [userBId], references: [id], onDelete: Cascade)
+  userBId   String
+  createdAt DateTime @default(now())
+
+  messages  Message[]
+
+  @@unique([userAId, userBId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchId   String
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderId  String
+  text      String
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+
+  @@index([matchId, createdAt])
+}
+
+model Block {
+  id         String   @id @default(cuid())
+  blocker    User     @relation("blocks_from", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockerId  String
+  blocked    User     @relation("blocks_to", fields: [blockedId], references: [id], onDelete: Cascade)
+  blockedId  String
+  createdAt  DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  reporter    User     @relation("reports_from", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporterId  String
+  reported    User     @relation("reports_to", fields: [reportedId], references: [id], onDelete: Cascade)
+  reportedId  String
+  reason      String
+  createdAt   DateTime @default(now())
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
