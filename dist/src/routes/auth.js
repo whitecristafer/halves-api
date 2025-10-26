@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import argon2 from "argon2";
-// Note: Prisma enum values align to string literals in DB; use literals here to avoid enum import friction
 const RegisterSchema = z.object({
     email: z.string().email(),
     username: z.string().min(3).max(24),
