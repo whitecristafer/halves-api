@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { env } from "../env";
+import { randomUUID } from "node:crypto";
 import argon2 from "argon2";
 
 const RegisterSchema = z.object({
@@ -70,7 +71,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     });
 
     const access = await app.jwt.sign({ sub: user.id }, { expiresIn: env.JWT_ACCESS_TTL });
-  const refresh = await app.jwt.sign({ sub: user.id }, { expiresIn: env.JWT_REFRESH_TTL });
+    const refresh = await app.jwt.sign({ sub: user.id, jti: randomUUID() }, { expiresIn: env.JWT_REFRESH_TTL });
     const expiresAt = new Date(Date.now() + ttlToMs(env.JWT_REFRESH_TTL));
     await app.prisma.refreshToken.create({ data: { userId: user.id, token: refresh, expiresAt } });
     return reply.code(201).send({ user, access, refresh });
@@ -94,7 +95,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const access = await app.jwt.sign({ sub: user.id }, { expiresIn: env.JWT_ACCESS_TTL });
-  const refresh = await app.jwt.sign({ sub: user.id }, { expiresIn: env.JWT_REFRESH_TTL });
+    const refresh = await app.jwt.sign({ sub: user.id, jti: randomUUID() }, { expiresIn: env.JWT_REFRESH_TTL });
     const expiresAt = new Date(Date.now() + ttlToMs(env.JWT_REFRESH_TTL));
     await app.prisma.refreshToken.create({ data: { userId: user.id, token: refresh, expiresAt } });
     return reply.send({
