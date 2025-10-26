@@ -42,6 +42,9 @@ model User {
   reportsByMe    Report[]  @relation("reports_from")
   reportsToMe    Report[]  @relation("reports_to")
   refreshTokens  RefreshToken[]
+  // Feed seen relations
+  feedSeenAsViewer FeedSeen[] @relation("feed_seen_viewer")
+  feedSeenAsSeen   FeedSeen[] @relation("feed_seen_user")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }
