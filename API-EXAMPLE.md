@@ -62,7 +62,7 @@ Notes:
 - Unique `(userId, order)` is enforced; order is 0-based and preserved. On delete, remaining photos are re-sequenced to 0..N-1.
 - Only image/* mimetypes are accepted. If a user already has 4 photos → 400 BAD_INPUT `"Max 4 photos allowed"`.
 
-## Preferences (Preferences) [NEXT]
+## Preferences (Preferences) [DONE]
 GET /me/preferences
 - 200 → `{ ageMin, ageMax, distanceKm, showGenders: ["male","female","other"], onlyVerified }`
 
@@ -70,6 +70,9 @@ PATCH /me/preferences
 - body: any of the fields, for example
   `{ "ageMin": 20, "ageMax": 45, "showGenders": ["female"] }`
 - 200 → `{ ...updated }`
+Notes:
+- Default is created on first GET/PATCH if missing (showGenders defaults to [male,female,other]).
+- Validation: `18 ≤ ageMin ≤ ageMax ≤ 99`, `1 ≤ distanceKm ≤ 500`, `showGenders` non-empty subset of [male,female,other].
 
 ## Tape (Feed) [NEXT]
 GET /feed?limit=20&cursor=opaque
