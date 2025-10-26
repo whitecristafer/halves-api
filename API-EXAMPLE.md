@@ -35,7 +35,7 @@ curl -X POST http://localhost:3000/auth/register \
  -d '{"email":"alice@example.com","username":"alice","password":"password123"}'
 ```
 
-## Profile / Me [NEXT]
+## Profile / Me [DONE]
 GET /me
 - headers: Authorization: Bearer <token>
 - 200 → `{ user: { id, email, username, name?, bio?, city?, onboardingDone, ... } }`
@@ -46,7 +46,7 @@ PATCH /me
 - 200 → `{ user: {...updated} }`
 - 400 BAD_INPUT
 
-## Photo [NEXT]
+## Photo [DONE]
 GET /me/photos
 - 200 → `{ photos: [{ id, url, order }] }`
 
@@ -58,7 +58,9 @@ POST /me/photos (multipart/form-data)
 DELETE /me/photos/:id
 - 204
 
-Note: the database is unique `(userId, order)` the order of the photos is saved correctly.
+Notes:
+- Unique `(userId, order)` is enforced; order is 0-based and preserved. On delete, remaining photos are re-sequenced to 0..N-1.
+- Only image/* mimetypes are accepted. If a user already has 4 photos → 400 BAD_INPUT `"Max 4 photos allowed"`.
 
 ## Preferences (Preferences) [NEXT]
 GET /me/preferences
