@@ -3,15 +3,7 @@ import { pipeline } from "node:stream/promises";
 import { createWriteStream, unlinkSync, existsSync } from "node:fs";
 import { join, basename } from "node:path";
 import { env } from "../env";
-
-async function requireAuth(req: any, reply: any) {
-  try {
-    await req.jwtVerify();
-  } catch (err: any) {
-    const code = err?.code === "FST_JWT_NO_AUTHORIZATION_IN_HEADER" ? "NO_TOKEN" : "INVALID_TOKEN";
-    return reply.code(401).send({ code, message: "Unauthorized" });
-  }
-}
+import { requireAuth } from "../utils/auth";
 
 export const photosRoutes: FastifyPluginAsync = async (app) => {
   // GET /me/photos

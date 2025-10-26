@@ -2,15 +2,7 @@ import { pipeline } from "node:stream/promises";
 import { createWriteStream, unlinkSync, existsSync } from "node:fs";
 import { join, basename } from "node:path";
 import { env } from "../env";
-async function requireAuth(req, reply) {
-    try {
-        await req.jwtVerify();
-    }
-    catch (err) {
-        const code = err?.code === "FST_JWT_NO_AUTHORIZATION_IN_HEADER" ? "NO_TOKEN" : "INVALID_TOKEN";
-        return reply.code(401).send({ code, message: "Unauthorized" });
-    }
-}
+import { requireAuth } from "../utils/auth";
 export const photosRoutes = async (app) => {
     // GET /me/photos
     app.get("/me/photos", { preHandler: requireAuth }, async (req, reply) => {

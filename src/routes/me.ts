@@ -1,16 +1,7 @@
 import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
-
-// Minimal auth preHandler: verifies JWT and maps errors to API codes
-async function requireAuth(req: any, reply: any) {
-  try {
-    await req.jwtVerify();
-  } catch (err: any) {
-    const code = err?.code === "FST_JWT_NO_AUTHORIZATION_IN_HEADER" ? "NO_TOKEN" : "INVALID_TOKEN";
-    return reply.code(401).send({ code, message: "Unauthorized" });
-  }
-}
+import { requireAuth } from "../utils/auth";
 
 const PatchMeSchema = z.object({
   name: z.string().min(1).max(100).optional(),

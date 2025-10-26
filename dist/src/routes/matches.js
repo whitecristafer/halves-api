@@ -1,14 +1,6 @@
 import { z } from "zod";
 import { encodeCursor, decodeCursor } from "../utils/cursor";
-async function requireAuth(req, reply) {
-    try {
-        await req.jwtVerify();
-    }
-    catch (err) {
-        const code = err?.code === "FST_JWT_NO_AUTHORIZATION_IN_HEADER" ? "NO_TOKEN" : "INVALID_TOKEN";
-        return reply.code(401).send({ code, message: "Unauthorized" });
-    }
-}
+import { requireAuth } from "../utils/auth";
 const QuerySchema = z.object({
     limit: z.coerce.number().int().min(1).max(50).default(20),
     cursor: z.string().optional(),

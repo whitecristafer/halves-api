@@ -1,14 +1,6 @@
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
-async function requireAuth(req, reply) {
-    try {
-        await req.jwtVerify();
-    }
-    catch (err) {
-        const code = err?.code === "FST_JWT_NO_AUTHORIZATION_IN_HEADER" ? "NO_TOKEN" : "INVALID_TOKEN";
-        return reply.code(401).send({ code, message: "Unauthorized" });
-    }
-}
+import { requireAuth } from "../utils/auth";
 const ReportSchema = z.object({
     reportedUserId: z.string().min(1),
     reason: z.string().min(1).max(500),
