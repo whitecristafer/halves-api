@@ -2,7 +2,6 @@ import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import argon2 from "argon2";
-import { Gender } from "@prisma/client";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
@@ -19,7 +18,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/register", async (req, reply) => {
     const parsed = RegisterSchema.safeParse(req.body);
     if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error).message });
+      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
     }
     const { email, username, password } = parsed.data;
 
@@ -39,7 +38,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         passwordHash,
         preferences: {
           create: {
-            showGenders: [Gender.male, Gender.female, Gender.other],
+            showGenders: ["male", "female", "other"] as any,
           },
         },
       },
@@ -53,7 +52,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/login", async (req, reply) => {
     const parsed = LoginSchema.safeParse(req.body);
     if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error).message });
+      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
     }
     const { email, password } = parsed.data;
 
