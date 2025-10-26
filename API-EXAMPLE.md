@@ -122,7 +122,7 @@ Notes:
 - `lastMessageAt` is the timestamp of the latest message in the match (or null if none).
 - Pagination cursor is Base64(JSON) of `{ id }`, ordered by `id` asc.
 
-## Messages [NEXT]
+## Messages [DONE]
 GET /matches/:id/messages?limit=30&cursor=opaque
 - 200 → 
 ```
@@ -137,6 +137,9 @@ GET /matches/:id/messages?limit=30&cursor=opaque
 POST /matches/:id/messages
 - body: `{ "text": "Hello!" }`
 - 201 → `{ "id":"...", "senderId":"me", "text":"Hello!", "createdAt":"..." }`
+Notes:
+- Pagination uses `createdAt` cursor (Base64(JSON) of `{ createdAt }`), ordered asc.
+- Only participants of the match can list/send messages; messaging is forbidden when either user blocked the other.
 
 ## Blockages [NEXT]
 POST /blocks
