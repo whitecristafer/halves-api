@@ -42,7 +42,7 @@ model User {
   reportsByMe    Report[]  @relation("reports_from")
   reportsToMe    Report[]  @relation("reports_to")
   refreshTokens  RefreshToken[]
-  // Feed seen relations (named due to double relation to User)
+  // Feed seen relations
   feedSeenAsViewer FeedSeen[] @relation("feed_seen_viewer")
   feedSeenAsSeen   FeedSeen[] @relation("feed_seen_user")
   createdAt      DateTime  @default(now())
