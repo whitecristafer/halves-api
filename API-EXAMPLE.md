@@ -141,7 +141,7 @@ Notes:
 - Pagination uses `createdAt` cursor (Base64(JSON) of `{ createdAt }`), ordered asc.
 - Only participants of the match can list/send messages; messaging is forbidden when either user blocked the other.
 
-## Blockages [NEXT]
+## Blockages [DONE]
 POST /blocks
 - body: `{ "blockedUserId": "..." }`
 - 201 → `{ "id":"...", "blockedUserId":"..." }`
@@ -154,7 +154,7 @@ DELETE /blocks/:blockedUserId
 - the block closes the possibility of new messages
 - (optional) hides the last chat in the list of matches
 
-## Reports [NEXT]
+## Reports [DONE]
 POST /reports
 - body: `{ "reportedUserId":"...", "reason":"spam" }`
 - 201 → `{ "id":"...", "reportedUserId":"...", "createdAt":"..." }`
