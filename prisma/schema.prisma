@@ -135,3 +135,15 @@ model RefreshToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 }
+
+model FeedSeen {
+  id         String   @id @default(cuid())
+  viewer     User     @relation("feed_seen_viewer", fields: [viewerId], references: [id], onDelete: Cascade)
+  viewerId   String
+  seenUser   User     @relation("feed_seen_user", fields: [seenUserId], references: [id], onDelete: Cascade)
+  seenUserId String
+  seenAt     DateTime @default(now())
+
+  @@unique([viewerId, seenUserId])
+  @@index([viewerId, seenAt])
+}

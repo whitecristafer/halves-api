@@ -35,13 +35,20 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
     fromDate.setFullYear(fromDate.getFullYear() - ageMax);
 
     // Block filters (both directions)
-    const [blockedByMe, blockedMe] = await Promise.all([
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    const [blockedByMe, blockedMe, seen] = await Promise.all([
       app.prisma.block.findMany({ where: { blockerId: userId }, select: { blockedId: true } }),
       app.prisma.block.findMany({ where: { blockedId: userId }, select: { blockerId: true } }),
+      app.prisma.feedSeen.findMany({
+        where: { viewerId: userId, seenAt: { gt: oneHourAgo } },
+        select: { seenUserId: true },
+      }),
     ]);
     const excludeIds = new Set<string>();
   blockedByMe.forEach((b: any) => excludeIds.add(b.blockedId));
   blockedMe.forEach((b: any) => excludeIds.add(b.blockerId));
+    (seen as any[]).forEach((s: any) => excludeIds.add(s.seenUserId));
 
     // Cursor
     let prismaCursor: any | undefined;
@@ -95,8 +102,26 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
       };
     });
 
+    // Mark shown users as seen (upsert with current timestamp)
+    if (users.length > 0) {
+      const now = new Date();
+      await Promise.all(
+        users.map((u: any) =>
+          app.prisma.feedSeen.upsert({
+            where: { viewerId_seenUserId: { viewerId: userId, seenUserId: u.id } },
+            update: { seenAt: now },
+            create: { viewerId: userId, seenUserId: u.id, seenAt: now },
+          })
+        )
+      );
+    }
+
     const nextCursor = users.length === limit ? encodeCursor({ id: users[users.length - 1].id }) : undefined;
 
-    return reply.send({ items, nextCursor });
+    // If empty due to exhaustion (seen filter), hint client to retry later
+    const exhausted = users.length === 0;
+    const retryAfterSec = exhausted ? 3600 : undefined;
+
+    return reply.send({ items, nextCursor, exhausted, retryAfterSec });
   });
 };

@@ -6,8 +6,21 @@ import argon2 from "argon2";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
-  username: z.string().min(3).max(24),
-  password: z.string().min(8).max(72),
+  username: z
+    .string()
+    .min(3)
+    .max(24)
+    .regex(/^[a-zA-Z0-9_]+$/i, "Username can contain letters, numbers, underscore"),
+  name: z.string().min(1).max(100),
+  birthday: z.coerce.date(),
+  password: z
+    .string()
+    .min(8)
+    .max(72)
+    .refine((v) => /[a-z]/.test(v), "Must contain a lowercase letter")
+    .refine((v) => /[A-Z]/.test(v), "Must contain an uppercase letter")
+    .refine((v) => /[0-9]/.test(v), "Must contain a digit")
+    .refine((v) => /[^A-Za-z0-9]/.test(v), "Must contain a symbol"),
 });
 
 const LoginSchema = z.object({
@@ -29,7 +42,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) {
       return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
     }
-    const { email, username, password } = parsed.data;
+  const { email, username, name, birthday, password } = parsed.data;
 
     const exists = await app.prisma.user.findFirst({
       where: { OR: [{ email }, { username }] },
@@ -42,8 +55,10 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const passwordHash = await argon2.hash(password);
     const user = await app.prisma.user.create({
       data: {
-        email,
-        username,
+  email,
+  username: username.trim(),
+  name: name.trim(),
+  birthday,
         passwordHash,
         preferences: {
           create: {

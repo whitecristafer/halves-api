@@ -83,13 +83,16 @@ GET /feed?limit=20&cursor=opaque
   "items": [
     { "id": "...", "username": "bob", "name": "Bob", "city": "Builder", "photos":[{url,order}], "isVerified": false, "age": 30 }
   ],
-  "nextCursor": "opaque" // if there are more
+  "nextCursor": "opaque", // if there are more
+  "exhausted": false,      // true when the feed is temporarily exhausted due to deduplication
+  "retryAfterSec": 3600    // optional hint to retry later (seconds)
 }
 ```
 Notes:
 - Pagination: opaque cursor is Base64(JSON) of `{ id }` of the last item; order by `id` asc.
 - Blocks: users blocked by me or blocking me are hidden from feed.
 - Age filter is derived from birthday range; users without birthday are excluded from feed.
+- Non-repetition: profiles shown in the last ~1 hour are skipped using `FeedSeen`; returned items are marked as seen. If no items remain due to this filter, `exhausted=true` is returned with `retryAfterSec≈3600`.
 
 ## Swipe/like/dislike (Interaction) [DONE]
 POST /like
