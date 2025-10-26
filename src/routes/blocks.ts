@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { requireAuth } from "../utils/auth";
+import { badInput, conflict, notFound } from "../utils/errors";
 
 const BlockSchema = z.object({
   blockedUserId: z.string().min(1),
@@ -12,21 +13,21 @@ export const blocksRoutes: FastifyPluginAsync = async (app) => {
   app.post("/blocks", { preHandler: requireAuth }, async (req: any, reply) => {
     const parsed = BlockSchema.safeParse(req.body);
     if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
+      return badInput(reply, fromZodError(parsed.error as any).message);
     }
     const me = req.user?.sub as string | undefined;
-    if (!me) return reply.code(401).send({ code: "INVALID_TOKEN", message: "Unauthorized" });
-    const { blockedUserId } = parsed.data;
-    if (me === blockedUserId) return reply.code(400).send({ code: "BAD_INPUT", message: "Cannot block yourself" });
+  if (!me) return reply.code(401).send({ code: "INVALID_TOKEN", message: "Unauthorized" });
+  const { blockedUserId } = parsed.data;
+  if (me === blockedUserId) return badInput(reply, "Cannot block yourself");
 
     const existsUser = await app.prisma.user.findUnique({ where: { id: blockedUserId }, select: { id: true } });
-    if (!existsUser) return reply.code(404).send({ code: "NOT_FOUND", message: "User not found" });
+  if (!existsUser) return notFound(reply, "User not found");
 
     const exists = await app.prisma.block.findUnique({
       where: { blockerId_blockedId: { blockerId: me, blockedId: blockedUserId } },
       select: { id: true },
     });
-    if (exists) return reply.code(409).send({ code: "ALREADY_EXISTS", message: "Already blocked" });
+  if (exists) return conflict(reply, "Already blocked");
 
     const block = await app.prisma.block.create({
       data: { blockerId: me, blockedId: blockedUserId },

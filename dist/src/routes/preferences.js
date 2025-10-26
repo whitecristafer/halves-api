@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { fromZodError } from "zod-validation-error";
 import { requireAuth } from "../utils/auth";
+import { badInput, zodBadInput } from "../utils/errors";
 const GenderEnum = z.enum(["male", "female", "other"]);
 const PrefsPatchSchema = z
     .object({
@@ -38,7 +38,7 @@ export const preferencesRoutes = async (app) => {
     app.patch("/me/preferences", { preHandler: requireAuth }, async (req, reply) => {
         const parsed = PrefsPatchSchema.safeParse(req.body ?? {});
         if (!parsed.success) {
-            return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error).message });
+            return zodBadInput(reply, parsed.error);
         }
         const userId = req.user?.sub;
         if (!userId)
@@ -52,7 +52,7 @@ export const preferencesRoutes = async (app) => {
             onlyVerified: parsed.data.onlyVerified ?? current?.onlyVerified ?? false,
         };
         if (merged.ageMin > merged.ageMax) {
-            return reply.code(400).send({ code: "BAD_INPUT", message: "ageMin must be <= ageMax" });
+            return badInput(reply, "ageMin must be <= ageMax");
         }
         const updated = await app.prisma.preferences.upsert({
             where: { userId },

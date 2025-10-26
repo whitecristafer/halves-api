@@ -3,6 +3,7 @@ import { createWriteStream, unlinkSync, existsSync } from "node:fs";
 import { join, basename } from "node:path";
 import { env } from "../env";
 import { requireAuth } from "../utils/auth";
+import { badInput, notFound } from "../utils/errors";
 export const photosRoutes = async (app) => {
     // GET /me/photos
     app.get("/me/photos", { preHandler: requireAuth }, async (req, reply) => {
@@ -23,14 +24,14 @@ export const photosRoutes = async (app) => {
             return reply.code(401).send({ code: "INVALID_TOKEN", message: "Unauthorized" });
         const count = await app.prisma.photo.count({ where: { userId } });
         if (count >= 4) {
-            return reply.code(400).send({ code: "BAD_INPUT", message: "Max 4 photos allowed" });
+            return badInput(reply, "Max 4 photos allowed");
         }
         const file = await req.file();
         if (!file)
-            return reply.code(400).send({ code: "BAD_INPUT", message: "File 'photo' is required" });
+            return badInput(reply, "File 'photo' is required");
         const { filename: origName, mimetype, file: stream } = file;
         if (!mimetype?.startsWith("image/")) {
-            return reply.code(400).send({ code: "BAD_INPUT", message: "Only image files are allowed" });
+            return badInput(reply, "Only image files are allowed");
         }
         const ext = (origName?.includes(".") ? "." + origName.split(".").pop() : "") || "";
         const name = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}${ext}`;
@@ -52,7 +53,7 @@ export const photosRoutes = async (app) => {
         const { id } = req.params;
         const photo = await app.prisma.photo.findFirst({ where: { id, userId } });
         if (!photo)
-            return reply.code(404).send({ code: "NOT_FOUND", message: "Photo not found" });
+            return notFound(reply, "Photo not found");
         // Delete DB record first
         await app.prisma.photo.delete({ where: { id } });
         // Remove file if exists

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { encodeCursor, decodeCursor } from "../utils/cursor";
 import { requireAuth } from "../utils/auth";
+import { badInput, forbidden, notFound } from "../utils/errors";
 const GetQuerySchema = z.object({
     limit: z.coerce.number().int().min(1).max(100).default(30),
     cursor: z.string().optional(),
@@ -13,14 +14,14 @@ export const messagesRoutes = async (app) => {
         const { id } = req.params;
         const parsed = GetQuerySchema.safeParse(req.query);
         if (!parsed.success)
-            return reply.code(400).send({ code: "BAD_INPUT", message: "Invalid query" });
+            return badInput(reply, "Invalid query");
         const { limit, cursor } = parsed.data;
         const me = req.user?.sub;
         if (!me)
             return reply.code(401).send({ code: "INVALID_TOKEN", message: "Unauthorized" });
         const match = await app.prisma.match.findUnique({ where: { id }, select: { userAId: true, userBId: true } });
         if (!match || (match.userAId !== me && match.userBId !== me)) {
-            return reply.code(404).send({ code: "NOT_FOUND", message: "Match not found" });
+            return notFound(reply, "Match not found");
         }
         let prismaCursor;
         if (cursor) {
@@ -43,13 +44,13 @@ export const messagesRoutes = async (app) => {
         const { id } = req.params;
         const parsed = BodySchema.safeParse(req.body);
         if (!parsed.success)
-            return reply.code(400).send({ code: "BAD_INPUT", message: "Invalid body" });
+            return badInput(reply, "Invalid body");
         const me = req.user?.sub;
         if (!me)
             return reply.code(401).send({ code: "INVALID_TOKEN", message: "Unauthorized" });
         const match = await app.prisma.match.findUnique({ where: { id }, select: { userAId: true, userBId: true } });
         if (!match || (match.userAId !== me && match.userBId !== me)) {
-            return reply.code(404).send({ code: "NOT_FOUND", message: "Match not found" });
+            return notFound(reply, "Match not found");
         }
         // Blocks: disallow new messages if either participant blocked the other
         const otherId = match.userAId === me ? match.userBId : match.userAId;
@@ -63,7 +64,7 @@ export const messagesRoutes = async (app) => {
             select: { id: true },
         });
         if (blocked)
-            return reply.code(403).send({ code: "FORBIDDEN", message: "Messaging is blocked" });
+            return forbidden(reply, "Messaging is blocked");
         const msg = await app.prisma.message.create({
             data: { matchId: id, senderId: me, text: parsed.data.text },
             select: { id: true, senderId: true, text: true, createdAt: true },

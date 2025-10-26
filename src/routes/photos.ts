@@ -4,6 +4,7 @@ import { createWriteStream, unlinkSync, existsSync } from "node:fs";
 import { join, basename } from "node:path";
 import { env } from "../env";
 import { requireAuth } from "../utils/auth";
+import { badInput, notFound } from "../utils/errors";
 
 export const photosRoutes: FastifyPluginAsync = async (app) => {
   // GET /me/photos
@@ -26,14 +27,14 @@ export const photosRoutes: FastifyPluginAsync = async (app) => {
 
     const count = await app.prisma.photo.count({ where: { userId } });
     if (count >= 4) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: "Max 4 photos allowed" });
+      return badInput(reply, "Max 4 photos allowed");
     }
 
     const file = await req.file();
-    if (!file) return reply.code(400).send({ code: "BAD_INPUT", message: "File 'photo' is required" });
+  if (!file) return badInput(reply, "File 'photo' is required");
     const { filename: origName, mimetype, file: stream } = file as any;
     if (!mimetype?.startsWith("image/")) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: "Only image files are allowed" });
+      return badInput(reply, "Only image files are allowed");
     }
 
   const ext = (origName?.includes(".") ? "." + origName.split(".").pop() : "") || "";
@@ -59,7 +60,7 @@ export const photosRoutes: FastifyPluginAsync = async (app) => {
     const { id } = req.params as { id: string };
 
     const photo = await app.prisma.photo.findFirst({ where: { id, userId } });
-    if (!photo) return reply.code(404).send({ code: "NOT_FOUND", message: "Photo not found" });
+  if (!photo) return notFound(reply, "Photo not found");
 
     // Delete DB record first
     await app.prisma.photo.delete({ where: { id } });

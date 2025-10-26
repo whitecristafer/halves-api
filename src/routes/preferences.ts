@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { requireAuth } from "../utils/auth";
+import { badInput, zodBadInput } from "../utils/errors";
 
 const GenderEnum = z.enum(["male", "female", "other"]);
 
@@ -45,7 +46,7 @@ export const preferencesRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/me/preferences", { preHandler: requireAuth }, async (req: any, reply) => {
     const parsed = PrefsPatchSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
+      return zodBadInput(reply, parsed.error);
     }
     const userId = req.user?.sub as string | undefined;
     if (!userId) return reply.code(401).send({ code: "INVALID_TOKEN", message: "Unauthorized" });
@@ -60,7 +61,7 @@ export const preferencesRoutes: FastifyPluginAsync = async (app) => {
     };
 
     if (merged.ageMin > merged.ageMax) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: "ageMin must be <= ageMax" });
+      return badInput(reply, "ageMin must be <= ageMax");
     }
 
     const updated = await app.prisma.preferences.upsert({

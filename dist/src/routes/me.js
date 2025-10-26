@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { fromZodError } from "zod-validation-error";
 import { requireAuth } from "../utils/auth";
+import { notFound, zodBadInput } from "../utils/errors";
 const PatchMeSchema = z.object({
     name: z.string().min(1).max(100).optional(),
     bio: z.string().min(1).max(1000).optional(),
@@ -24,13 +24,13 @@ export const meRoutes = async (app) => {
             },
         });
         if (!user)
-            return reply.code(404).send({ code: "NOT_FOUND", message: "User not found" });
+            return notFound(reply, "User not found");
         return reply.send({ user });
     });
     app.patch("/me", { preHandler: requireAuth }, async (req, reply) => {
         const parsed = PatchMeSchema.safeParse(req.body ?? {});
         if (!parsed.success) {
-            return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error).message });
+            return zodBadInput(reply, parsed.error);
         }
         const userId = req.user?.sub;
         if (!userId)
@@ -53,7 +53,7 @@ export const meRoutes = async (app) => {
         }
         catch (e) {
             // If user not found
-            return reply.code(404).send({ code: "NOT_FOUND", message: "User not found" });
+            return notFound(reply, "User not found");
         }
     });
 };

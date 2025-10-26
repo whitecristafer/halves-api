@@ -47,8 +47,8 @@ export const feedRoutes = async (app) => {
             id: { not: userId, notIn: Array.from(excludeIds) },
             gender: { in: showGenders },
             ...(onlyVerified ? { isVerified: true } : {}),
+            // Users without birthday are excluded from feed
             birthday: {
-                // include only users with birthday in allowed range
                 gte: fromDate,
                 lte: toDate,
             },

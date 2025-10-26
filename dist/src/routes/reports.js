@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { requireAuth } from "../utils/auth";
+import { badInput, notFound } from "../utils/errors";
 const ReportSchema = z.object({
     reportedUserId: z.string().min(1),
     reason: z.string().min(1).max(500),
@@ -10,7 +11,7 @@ export const reportsRoutes = async (app) => {
     app.post("/reports", { preHandler: requireAuth }, async (req, reply) => {
         const parsed = ReportSchema.safeParse(req.body);
         if (!parsed.success) {
-            return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error).message });
+            return badInput(reply, fromZodError(parsed.error).message);
         }
         const me = req.user?.sub;
         if (!me)
@@ -20,7 +21,7 @@ export const reportsRoutes = async (app) => {
             return reply.code(400).send({ code: "BAD_INPUT", message: "Cannot report yourself" });
         const existsUser = await app.prisma.user.findUnique({ where: { id: reportedUserId }, select: { id: true } });
         if (!existsUser)
-            return reply.code(404).send({ code: "NOT_FOUND", message: "User not found" });
+            return notFound(reply, "User not found");
         const report = await app.prisma.report.create({
             data: { reporterId: me, reportedId: reportedUserId, reason },
             select: { id: true, reportedId: true, createdAt: true },

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { requireAuth } from "../utils/auth";
+import { badInput, notFound } from "../utils/errors";
 const LikeSchema = z.object({
     toUserId: z.string().min(1),
     isLike: z.boolean(),
@@ -9,17 +10,17 @@ export const likeRoutes = async (app) => {
     app.post("/like", { preHandler: requireAuth }, async (req, reply) => {
         const parsed = LikeSchema.safeParse(req.body);
         if (!parsed.success) {
-            return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error).message });
+            return badInput(reply, fromZodError(parsed.error).message);
         }
         const { toUserId, isLike } = parsed.data;
         const fromUserId = req.user?.sub;
         if (!fromUserId)
             return reply.code(401).send({ code: "INVALID_TOKEN", message: "Unauthorized" });
         if (fromUserId === toUserId)
-            return reply.code(400).send({ code: "BAD_INPUT", message: "Cannot like yourself" });
+            return badInput(reply, "Cannot like yourself");
         const existsTo = await app.prisma.user.findUnique({ where: { id: toUserId }, select: { id: true } });
         if (!existsTo)
-            return reply.code(404).send({ code: "NOT_FOUND", message: "User not found" });
+            return notFound(reply, "User not found");
         // Create or toggle interaction
         const existing = await app.prisma.interaction.findUnique({
             where: { fromUserId_toUserId: { fromUserId, toUserId } },
