@@ -74,7 +74,7 @@ Notes:
 - Default is created on first GET/PATCH if missing (showGenders defaults to [male,female,other]).
 - Validation: `18 ≤ ageMin ≤ ageMax ≤ 99`, `1 ≤ distanceKm ≤ 500`, `showGenders` non-empty subset of [male,female,other].
 
-## Tape (Feed) [NEXT]
+## Tape (Feed) [DONE]
 GET /feed?limit=20&cursor=opaque
 - takes into account the user's Preferences (age, showGenders, onlyVerified)
 - 200 → 
@@ -86,6 +86,10 @@ GET /feed?limit=20&cursor=opaque
   "nextCursor": "opaque" // if there are more
 }
 ```
+Notes:
+- Pagination: opaque cursor is Base64(JSON) of `{ id }` of the last item; order by `id` asc.
+- Blocks: users blocked by me or blocking me are hidden from feed.
+- Age filter is derived from birthday range; users without birthday may be excluded.
 
 ## Swipe/like/dislike (Interaction) [NEXT]
 POST /like

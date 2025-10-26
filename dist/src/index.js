@@ -11,6 +11,7 @@ import { authRoutes } from "./routes/auth";
 import { meRoutes } from "./routes/me";
 import { photosRoutes } from "./routes/photos";
 import { preferencesRoutes } from "./routes/preferences";
+import { feedRoutes } from "./routes/feed";
 async function createLogger() {
     if (process.env.NODE_ENV === "production")
         return true;
@@ -58,6 +59,7 @@ async function bootstrap() {
     await app.register(meRoutes);
     await app.register(photosRoutes);
     await app.register(preferencesRoutes);
+    await app.register(feedRoutes);
     const port = process.env.PORT ? Number(process.env.PORT) : 3000;
     await app.listen({ port, host: "0.0.0.0" });
     app.log.info(`API on http://localhost:${port}`);
