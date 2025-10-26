@@ -91,7 +91,7 @@ Notes:
 - Blocks: users blocked by me or blocking me are hidden from feed.
 - Age filter is derived from birthday range; users without birthday may be excluded.
 
-## Swipe/like/dislike (Interaction) [NEXT]
+## Swipe/like/dislike (Interaction) [DONE]
 POST /like
 - body: `{ "toUserId": "xxx", "isLike": true }`
 - 200 → 
