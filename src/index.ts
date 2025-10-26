@@ -10,6 +10,7 @@ import { prismaPlugin } from "./plugins/prisma";
 import { authRoutes } from "./routes/auth";
 import { meRoutes } from "./routes/me";
 import { photosRoutes } from "./routes/photos";
+import { preferencesRoutes } from "./routes/preferences";
 
 async function createLogger() {
   if (process.env.NODE_ENV === "production") return true;
@@ -62,6 +63,7 @@ async function bootstrap() {
   await app.register(authRoutes, { prefix: "/auth" });
   await app.register(meRoutes);
   await app.register(photosRoutes);
+  await app.register(preferencesRoutes);
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   await app.listen({ port, host: "0.0.0.0" });
