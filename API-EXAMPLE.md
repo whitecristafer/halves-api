@@ -20,12 +20,12 @@ curl http://localhost:3000/health
 ## Authentication [DONE]
 POST /auth/register
 - body: `{ "email": "a@b.c", "username": "alice", "password": "pass12345" }`
-- 201 → `{ user: { id, email, username, onboardingDone }, access: "JWT" }`
+- 201 → `{ user: { id, email, username, onboardingDone }, access: "JWT", refresh: "JWT" }`
 - 400 BAD_INPUT, 409 ALREADY_EXISTS
 
 POST /auth/login
 - body: `{ "email": "a@b.c", "password": "pass12345" }`
-- 200 → `{ user: { id, email, username, onboardingDone }, access: "JWT" }`
+- 200 → `{ user: { id, email, username, onboardingDone }, access: "JWT", refresh: "JWT" }`
 - 400 BAD_INPUT, 401 INVALID_CREDENTIALS
 
 curl:
@@ -159,10 +159,17 @@ POST /reports
 - body: `{ "reportedUserId":"...", "reason":"spam" }`
 - 201 → `{ "id":"...", "reportedUserId":"...", "createdAt":"..." }`
 
-## Tokens [NEXT]
-(there is a refreshToken model; we will add endpoints if necessary)
-- POST /auth/refresh → `{ access }`
-- POST /auth/logout → 204
+## Tokens [DONE]
+- POST /auth/refresh
+  - body: `{ "refresh": "..." }`
+  - 200 → `{ "access": "..." }`
+- POST /auth/logout
+  - body: `{ "refresh": "..." }`
+  - 204
+Notes:
+- Refresh tokens are JWTs with longer TTL and are persisted in DB (`RefreshToken.token`) for revocation.
+- On refresh, token must be valid (signature/exp) and present in DB; response returns a new access token.
+- On logout, the provided refresh token is deleted (idempotent).
 
 ## Constants and enumerations
 Gender: `"male" | "female" | "other"`  
