@@ -89,7 +89,7 @@ GET /feed?limit=20&cursor=opaque
 Notes:
 - Pagination: opaque cursor is Base64(JSON) of `{ id }` of the last item; order by `id` asc.
 - Blocks: users blocked by me or blocking me are hidden from feed.
-- Age filter is derived from birthday range; users without birthday may be excluded.
+- Age filter is derived from birthday range; users without birthday are excluded from feed.
 
 ## Swipe/like/dislike (Interaction) [DONE]
 POST /like
