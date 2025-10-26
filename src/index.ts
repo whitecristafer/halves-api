@@ -8,6 +8,8 @@ import { join } from "node:path";
 import { mkdirSync, existsSync } from "node:fs";
 import { prismaPlugin } from "./plugins/prisma";
 import { authRoutes } from "./routes/auth";
+import { meRoutes } from "./routes/me";
+import { photosRoutes } from "./routes/photos";
 
 async function createLogger() {
   if (process.env.NODE_ENV === "production") return true;
@@ -58,6 +60,8 @@ async function bootstrap() {
   app.get("/health", async () => ({ ok: true }));
 
   await app.register(authRoutes, { prefix: "/auth" });
+  await app.register(meRoutes);
+  await app.register(photosRoutes);
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   await app.listen({ port, host: "0.0.0.0" });
