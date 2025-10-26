@@ -14,6 +14,7 @@ import { preferencesRoutes } from "./routes/preferences";
 import { feedRoutes } from "./routes/feed";
 import { likeRoutes } from "./routes/like";
 import { matchesRoutes } from "./routes/matches";
+import { messagesRoutes } from "./routes/messages";
 
 async function createLogger() {
   if (process.env.NODE_ENV === "production") return true;
@@ -70,6 +71,7 @@ async function bootstrap() {
   await app.register(feedRoutes);
   await app.register(likeRoutes);
   await app.register(matchesRoutes);
+  await app.register(messagesRoutes);
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   await app.listen({ port, host: "0.0.0.0" });
