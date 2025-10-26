@@ -106,7 +106,7 @@ Notes:
 - Uniqueness in the database `(fromUserId, toUserId)` — the action cannot be repeated, only changed via PATCH (optional).
 - With mutual like, we create a Match; the pair is normalized (min(id), max(id)).
 
-## Matches [NEXT]
+## Matches [DONE]
 GET /matches?limit=20&cursor=opaque
 - 200 → 
 ```
@@ -117,6 +117,10 @@ GET /matches?limit=20&cursor=opaque
   "nextCursor":"opaque"
 }
 ```
+Notes:
+- The `peer` is the other user in the match relative to the current user; photos ordered by `order`.
+- `lastMessageAt` is the timestamp of the latest message in the match (or null if none).
+- Pagination cursor is Base64(JSON) of `{ id }`, ordered by `id` asc.
 
 ## Messages [NEXT]
 GET /matches/:id/messages?limit=30&cursor=opaque
