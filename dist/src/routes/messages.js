@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { encodeCursor, decodeCursor } from "../utils/cursor";
 async function requireAuth(req, reply) {
     try {
         await req.jwtVerify();
@@ -13,17 +14,7 @@ const GetQuerySchema = z.object({
     cursor: z.string().optional(),
 });
 const BodySchema = z.object({ text: z.string().min(1).max(2000) });
-function encodeCursor(obj) {
-    return Buffer.from(JSON.stringify(obj)).toString("base64url");
-}
-function decodeCursor(str) {
-    try {
-        return JSON.parse(Buffer.from(str, "base64url").toString("utf8"));
-    }
-    catch {
-        return null;
-    }
-}
+// cursor helpers moved to ../utils/cursor
 export const messagesRoutes = async (app) => {
     // GET /matches/:id/messages
     app.get("/matches/:id/messages", { preHandler: requireAuth }, async (req, reply) => {

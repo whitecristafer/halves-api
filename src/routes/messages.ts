@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import { encodeCursor, decodeCursor } from "../utils/cursor";
 
 async function requireAuth(req: any, reply: any) {
   try {
@@ -17,16 +18,7 @@ const GetQuerySchema = z.object({
 
 const BodySchema = z.object({ text: z.string().min(1).max(2000) });
 
-function encodeCursor(obj: any) {
-  return Buffer.from(JSON.stringify(obj)).toString("base64url");
-}
-function decodeCursor(str: string) {
-  try {
-    return JSON.parse(Buffer.from(str, "base64url").toString("utf8"));
-  } catch {
-    return null;
-  }
-}
+// cursor helpers moved to ../utils/cursor
 
 export const messagesRoutes: FastifyPluginAsync = async (app) => {
   // GET /matches/:id/messages
