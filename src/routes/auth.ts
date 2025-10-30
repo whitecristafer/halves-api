@@ -4,6 +4,7 @@ import { fromZodError } from "zod-validation-error";
 import { env } from "../env";
 import { randomUUID } from "node:crypto";
 import argon2 from "argon2";
+import { zodBadInput } from "../utils/errors";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
@@ -40,9 +41,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   }
   app.post("/register", async (req, reply) => {
     const parsed = RegisterSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
-    }
+    if (!parsed.success) return zodBadInput(reply, parsed.error);
   const { email, username, name, birthday, password } = parsed.data;
 
     const exists = await app.prisma.user.findFirst({
@@ -79,9 +78,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/login", async (req, reply) => {
     const parsed = LoginSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
-    }
+    if (!parsed.success) return zodBadInput(reply, parsed.error);
     const { email, password } = parsed.data;
 
     const user = await app.prisma.user.findUnique({ where: { email } });
@@ -109,9 +106,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/refresh", async (req, reply) => {
     const parsed = RefreshSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
-    }
+    if (!parsed.success) return zodBadInput(reply, parsed.error);
     const { refresh } = parsed.data;
     try {
       await app.jwt.verify(refresh);
@@ -131,9 +126,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/logout", async (req, reply) => {
     const parsed = RefreshSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
-    }
+    if (!parsed.success) return zodBadInput(reply, parsed.error);
     const { refresh } = parsed.data;
     await app.prisma.refreshToken.deleteMany({ where: { token: refresh } });
     return reply.code(204).send();

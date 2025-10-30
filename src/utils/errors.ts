@@ -1,5 +1,3 @@
-import { fromZodError } from "zod-validation-error";
-
 export function badInput(reply: any, message: string) {
   return reply.code(400).send({ code: "BAD_INPUT", message });
 }
@@ -25,6 +23,18 @@ export function internal(reply: any, message = "Internal error") {
 }
 
 export function zodBadInput(reply: any, zodError: unknown) {
-  const message = fromZodError(zodError as any).message;
-  return badInput(reply, message);
+  try {
+    const err: any = zodError as any;
+    const issues: any[] = Array.isArray(err?.issues) ? err.issues : Array.isArray(err?.errors) ? err.errors : [];
+    if (!issues.length) return badInput(reply, "Invalid input");
+    const msg = issues
+      .map((i: any) => {
+        const path = Array.isArray(i?.path) ? i.path.join(".") : "";
+        return path ? `${path}: ${i?.message}` : `${i?.message}`;
+      })
+      .join("; ");
+    return badInput(reply, msg || "Invalid input");
+  } catch {
+    return badInput(reply, "Invalid input");
+  }
 }

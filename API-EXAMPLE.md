@@ -146,6 +146,7 @@ POST /matches/:id/messages
 Notes:
 - Pagination uses `createdAt` cursor (Base64(JSON) of `{ createdAt }`), ordered asc.
 - Only participants of the match can list/send messages; messaging is forbidden when either user blocked the other.
+ - Errors: 400 BAD_INPUT (invalid body), 403 FORBIDDEN (messaging is blocked), 404 NOT_FOUND (match not found or not yours)
 
 ## Blockages [DONE]
 POST /blocks
