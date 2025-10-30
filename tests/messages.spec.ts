@@ -72,4 +72,39 @@ describe("messages: negative cases and blocks", () => {
     const bTry = await app.inject({ method: "POST", url: `/matches/${matchId}/messages`, headers: { authorization: `Bearer ${b.access}` }, payload: { text: "nope" } });
     expect(bTry.statusCode).toBe(403);
   });
+
+  it("paginates messages with createdAt cursor (ascending, no overlaps)", async () => {
+    const a = await register(app, { email: "pg@example.com", username: "pgusera", name: "PA", birthday: "1990-01-01", password: PWD });
+    const b = await register(app, { email: "pgb@example.com", username: "pguserb", name: "PB", birthday: "1990-01-01", password: PWD });
+
+    await like(app, a.access, b.user.id, true);
+    const res = await like(app, b.access, a.user.id, true);
+    const matchId = res.matchId!;
+
+    // Send 5 messages alternating senders
+    const send = async (who: any, text: string) =>
+      app.inject({ method: "POST", url: `/matches/${matchId}/messages`, headers: { authorization: `Bearer ${who.access}` }, payload: { text } });
+    await (await send(a, "m1")).json();
+    await (await send(b, "m2")).json();
+    await (await send(a, "m3")).json();
+    await (await send(b, "m4")).json();
+    await (await send(a, "m5")).json();
+
+    // Page 1: limit 2
+    const p1 = await app.inject({ method: "GET", url: `/matches/${matchId}/messages?limit=2`, headers: { authorization: `Bearer ${a.access}` } });
+    expect(p1.statusCode).toBe(200);
+    const b1 = p1.json();
+    expect(b1.items.map((m: any) => m.text)).toEqual(["m1", "m2"]);
+    expect(b1.nextCursor).toBeTruthy();
+
+    // Page 2
+    const p2 = await app.inject({ method: "GET", url: `/matches/${matchId}/messages?limit=2&cursor=${encodeURIComponent(b1.nextCursor)}`, headers: { authorization: `Bearer ${a.access}` } });
+    const b2 = p2.json();
+    expect(b2.items.map((m: any) => m.text)).toEqual(["m3", "m4"]);
+
+    // Page 3 (remaining)
+    const p3 = await app.inject({ method: "GET", url: `/matches/${matchId}/messages?limit=2&cursor=${encodeURIComponent(b2.nextCursor)}`, headers: { authorization: `Bearer ${a.access}` } });
+    const b3 = p3.json();
+    expect(b3.items.map((m: any) => m.text)).toEqual(["m5"]);
+  });
 });
