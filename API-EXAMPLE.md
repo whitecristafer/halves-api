@@ -136,7 +136,7 @@ Notes:
 - Pagination: opaque cursor is Base64(JSON) of `{ id }` of the last item; order by `id` asc.
 - Blocks: users blocked by me or blocking me are hidden from feed.
 - Age filter is derived from birthday range; users without birthday are excluded from feed.
-- Non-repetition: profiles shown in the last ~1 hour are skipped using `FeedSeen`; returned items are marked as seen. If no items remain due to this filter, `exhausted=true` is returned with `retryAfterSec≈3600`.
+- Non-repetition: profiles shown in the last ~30 seconds are skipped using `FeedSeen`; returned items are marked as seen. If no items remain due to this filter, `exhausted=true` is returned with `retryAfterSec≈30`.
 
 curl (PowerShell):
 ```

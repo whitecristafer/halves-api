@@ -34,14 +34,15 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
     const fromDate = new Date(now); // oldest allowed (ageMax)
     fromDate.setFullYear(fromDate.getFullYear() - ageMax);
 
-    // Block filters (both directions)
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  // Block filters (both directions) and recent seen window
+  const dedupMs = 30 * 1000; // 30 seconds
+  const recentCutoff = new Date(Date.now() - dedupMs);
 
     const [blockedByMe, blockedMe, seen] = await Promise.all([
       app.prisma.block.findMany({ where: { blockerId: userId }, select: { blockedId: true } }),
       app.prisma.block.findMany({ where: { blockedId: userId }, select: { blockerId: true } }),
       app.prisma.feedSeen.findMany({
-        where: { viewerId: userId, seenAt: { gt: oneHourAgo } },
+        where: { viewerId: userId, seenAt: { gt: recentCutoff } },
         select: { seenUserId: true },
       }),
     ]);
@@ -120,7 +121,7 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
 
     // If empty due to exhaustion (seen filter), hint client to retry later
     const exhausted = users.length === 0;
-    const retryAfterSec = exhausted ? 3600 : undefined;
+  const retryAfterSec = exhausted ? Math.floor(dedupMs / 1000) : undefined;
 
     return reply.send({ items, nextCursor, exhausted, retryAfterSec });
   });
