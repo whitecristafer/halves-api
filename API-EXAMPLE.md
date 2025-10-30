@@ -24,7 +24,8 @@ POST /auth/register
 - 400 BAD_INPUT, 409 ALREADY_EXISTS
 Notes:
 - Required fields: email, username, name, birthday, password.
-- Password policy: min 8 chars, must include lowercase, uppercase, digit, and symbol.
+- Username: 3..24 chars, letters/digits/underscore only.
+- Password: min 8 chars, must include lowercase, uppercase, digit, and symbol.
 
 POST /auth/login
 - body: `{ "email": "a@b.c", "password": "pass12345" }`
@@ -38,6 +39,13 @@ curl -X POST http://localhost:3000/auth/register \
  -d '{"email":"alice@example.com","username":"alice","name":"Alice","birthday":"1995-01-01","password":"Aa1!aaaa"}'
 ```
 
+PowerShell:
+```
+curl.exe -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"Aa1!aaaa"}'
+```
+
 ## Profile / Me [DONE]
 GET /me
 - headers: Authorization: Bearer <token>
@@ -48,6 +56,16 @@ PATCH /me
 - body (any fields): `{ "name": "Alice", "bio": "Hello", "city": "Wonderland" }`
 - 200 → `{ user: {...updated} }`
 - 400 BAD_INPUT
+
+curl (PowerShell):
+```
+$ACCESS = "<ACCESS_TOKEN>"
+curl.exe -H "Authorization: Bearer $ACCESS" http://localhost:3000/me
+curl.exe -X PATCH http://localhost:3000/me `
+  -H "Authorization: Bearer $ACCESS" `
+  -H "Content-Type: application/json" `
+  -d '{"name":"Alice","bio":"Hello","city":"Wonderland"}'
+```
 
 ## Photo [DONE]
 GET /me/photos
@@ -65,6 +83,20 @@ Notes:
 - Unique `(userId, order)` is enforced; order is 0-based and preserved. On delete, remaining photos are re-sequenced to 0..N-1.
 - Only image/* mimetypes are accepted. If a user already has 4 photos → 400 BAD_INPUT `"Max 4 photos allowed"`.
 
+curl upload (PowerShell, single file):
+```
+$ACCESS = "<ACCESS_TOKEN>"
+curl.exe -X POST http://localhost:3000/me/photos `
+  -H "Authorization: Bearer $ACCESS" `
+  -F "photo=@C:\\path\\to\\pic.png;type=image/png"
+```
+
+curl list + delete:
+```
+curl.exe -H "Authorization: Bearer $ACCESS" http://localhost:3000/me/photos
+curl.exe -X DELETE http://localhost:3000/me/photos/<PHOTO_ID> -H "Authorization: Bearer $ACCESS"
+```
+
 ## Preferences (Preferences) [DONE]
 GET /me/preferences
 - 200 → `{ ageMin, ageMax, distanceKm, showGenders: ["male","female","other"], onlyVerified }`
@@ -76,6 +108,15 @@ PATCH /me/preferences
 Notes:
 - Default is created on first GET/PATCH if missing (showGenders defaults to [male,female,other]).
 - Validation: `18 ≤ ageMin ≤ ageMax ≤ 99`, `1 ≤ distanceKm ≤ 500`, `showGenders` non-empty subset of [male,female,other].
+
+curl (PowerShell):
+```
+curl.exe -H "Authorization: Bearer $ACCESS" http://localhost:3000/me/preferences
+curl.exe -X PATCH http://localhost:3000/me/preferences `
+  -H "Authorization: Bearer $ACCESS" `
+  -H "Content-Type: application/json" `
+  -d '{"ageMin":21,"ageMax":35,"showGenders":["female"],"onlyVerified":true}'
+```
 
 ## Tape (Feed) [DONE]
 GET /feed?limit=20&cursor=opaque
@@ -97,6 +138,14 @@ Notes:
 - Age filter is derived from birthday range; users without birthday are excluded from feed.
 - Non-repetition: profiles shown in the last ~1 hour are skipped using `FeedSeen`; returned items are marked as seen. If no items remain due to this filter, `exhausted=true` is returned with `retryAfterSec≈3600`.
 
+curl (PowerShell):
+```
+$FEED = curl.exe -H "Authorization: Bearer $ACCESS" "http://localhost:3000/feed?limit=20"
+# If using jq (optional):
+# $CUR = (curl.exe -s -H "Authorization: Bearer $ACCESS" "http://localhost:3000/feed?limit=20" | jq -r .nextCursor)
+# curl.exe -H "Authorization: Bearer $ACCESS" "http://localhost:3000/feed?limit=20&cursor=$CUR"
+```
+
 ## Swipe/like/dislike (Interaction) [DONE]
 POST /like
 - body: `{ "toUserId": "xxx", "isLike": true }`
@@ -111,6 +160,14 @@ POST /like
 Notes:
 - Uniqueness in the database `(fromUserId, toUserId)` — the action cannot be repeated, only changed via PATCH (optional).
 - With mutual like, we create a Match; the pair is normalized (min(id), max(id)).
+
+curl (PowerShell):
+```
+curl.exe -X POST http://localhost:3000/like `
+  -H "Authorization: Bearer $ACCESS" `
+  -H "Content-Type: application/json" `
+  -d '{"toUserId":"<OTHER_ID>","isLike":true}'
+```
 
 ## Matches [DONE]
 GET /matches?limit=20&cursor=opaque
@@ -127,6 +184,13 @@ Notes:
 - The `peer` is the other user in the match relative to the current user; photos ordered by `order`.
 - `lastMessageAt` is the timestamp of the latest message in the match (or null if none).
 - Pagination cursor is Base64(JSON) of `{ id }`, ordered by `id` asc.
+
+curl (PowerShell):
+```
+$MATCHES = curl.exe -H "Authorization: Bearer $ACCESS" "http://localhost:3000/matches?limit=20"
+# With cursor: $CUR = "opaque"
+curl.exe -H "Authorization: Bearer $ACCESS" "http://localhost:3000/matches?limit=20&cursor=$CUR"
+```
 
 ## Messages [DONE]
 GET /matches/:id/messages?limit=30&cursor=opaque
@@ -148,6 +212,20 @@ Notes:
 - Only participants of the match can list/send messages; messaging is forbidden when either user blocked the other.
  - Errors: 400 BAD_INPUT (invalid body), 403 FORBIDDEN (messaging is blocked), 404 NOT_FOUND (match not found or not yours)
 
+curl (PowerShell):
+```
+# Send
+curl.exe -X POST http://localhost:3000/matches/<MATCH_ID>/messages `
+  -H "Authorization: Bearer $ACCESS" `
+  -H "Content-Type: application/json" `
+  -d '{"text":"Hello!"}'
+
+# List with pagination
+curl.exe -H "Authorization: Bearer $ACCESS" "http://localhost:3000/matches/<MATCH_ID>/messages?limit=2"
+# With cursor: $CUR = "opaque"
+curl.exe -H "Authorization: Bearer $ACCESS" "http://localhost:3000/matches/<MATCH_ID>/messages?limit=2&cursor=$CUR"
+```
+
 ## Blockages [DONE]
 POST /blocks
 - body: `{ "blockedUserId": "..." }`
@@ -166,6 +244,17 @@ POST /reports
 - body: `{ "reportedUserId":"...", "reason":"spam" }`
 - 201 → `{ "id":"...", "reportedUserId":"...", "createdAt":"..." }`
 
+## Static uploads [DONE]
+Files uploaded via `/me/photos` are served statically under `/uploads/`.
+
+GET /uploads/<FILENAME>
+- 200 → binary content with appropriate content-type
+
+curl:
+```
+curl.exe http://localhost:3000/uploads/<FILENAME>
+```
+
 ## Tokens [DONE]
 - POST /auth/refresh
   - body: `{ "refresh": "..." }`
@@ -177,6 +266,19 @@ Notes:
 - Refresh tokens are JWTs with longer TTL and are persisted in DB (`RefreshToken.token`) for revocation.
 - On refresh, token must be valid (signature/exp) and present in DB; response returns a new access token.
 - On logout, the provided refresh token is deleted (idempotent).
+
+curl (PowerShell):
+```
+# Refresh
+curl.exe -X POST http://localhost:3000/auth/refresh `
+  -H "Content-Type: application/json" `
+  -d '{"refresh":"<REFRESH_TOKEN>"}'
+
+# Logout
+curl.exe -X POST http://localhost:3000/auth/logout `
+  -H "Content-Type: application/json" `
+  -d '{"refresh":"<REFRESH_TOKEN>"}'
+```
 
 ## Constants and enumerations
 Gender: `"male" | "female" | "other"`  
