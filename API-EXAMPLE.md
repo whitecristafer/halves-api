@@ -19,11 +19,12 @@ curl http://localhost:3000/health
 
 ## Authentication [DONE]
 POST /auth/register
-- body: `{ "email": "a@b.c", "username": "alice", "name": "Alice", "birthday": "1995-01-01", "password": "Aa1!aaaa" }`
+- body: `{ "email": "a@b.c", "username": "alice", "name": "Alice", "birthday": "1995-01-01", "password": "Aa1!aaaa", "gender": "female" }`
 - 201 → `{ user: { id, email, username, onboardingDone }, access: "JWT", refresh: "JWT" }`
 - 400 BAD_INPUT, 409 ALREADY_EXISTS
 Notes:
-- Required fields: email, username, name, birthday, password.
+- Required fields: email, username, name, birthday, password. Optional: gender ("male" | "female" | "other").
+- If gender is not provided, it defaults to "other".
 - Username: 3..24 chars, letters/digits/underscore only.
 - Password: min 8 chars, must include lowercase, uppercase, digit, and symbol.
 
@@ -129,7 +130,7 @@ GET /feed?limit=20&cursor=opaque
   ],
   "nextCursor": "opaque", // if there are more
   "exhausted": false,      // true when the feed is temporarily exhausted due to deduplication
-  "retryAfterSec": 3600    // optional hint to retry later (seconds)
+  "retryAfterSec": 30      // optional hint to retry later (seconds)
 }
 ```
 Notes:

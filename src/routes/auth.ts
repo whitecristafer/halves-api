@@ -15,6 +15,8 @@ const RegisterSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/i, "Username can contain letters, numbers, underscore"),
   name: z.string().min(1).max(100),
   birthday: z.coerce.date(),
+  // Accept gender optionally; default to "other" if not provided so users show up in feed
+  gender: z.enum(["male", "female", "other"]).optional(),
   password: z
     .string()
     .min(8)
@@ -42,7 +44,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/register", async (req, reply) => {
     const parsed = RegisterSchema.safeParse(req.body);
     if (!parsed.success) return zodBadInput(reply, parsed.error);
-  const { email, username, name, birthday, password } = parsed.data;
+  const { email, username, name, birthday, password, gender } = parsed.data;
 
     const exists = await app.prisma.user.findFirst({
       where: { OR: [{ email }, { username }] },
@@ -59,6 +61,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   username: username.trim(),
   name: name.trim(),
   birthday,
+        gender: (gender ?? "other") as any,
         passwordHash,
         preferences: {
           create: {
