@@ -4,6 +4,7 @@ import { fromZodError } from "zod-validation-error";
 import { env } from "../env";
 import { randomUUID } from "node:crypto";
 import argon2 from "argon2";
+import { zodBadInput } from "../utils/errors";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
@@ -14,6 +15,8 @@ const RegisterSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/i, "Username can contain letters, numbers, underscore"),
   name: z.string().min(1).max(100),
   birthday: z.coerce.date(),
+  // Accept gender optionally; default to "other" if not provided so users show up in feed
+  gender: z.enum(["male", "female", "other"]).optional(),
   password: z
     .string()
     .min(8)
@@ -40,10 +43,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   }
   app.post("/register", async (req, reply) => {
     const parsed = RegisterSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
-    }
-  const { email, username, name, birthday, password } = parsed.data;
+    if (!parsed.success) return zodBadInput(reply, parsed.error);
+  const { email, username, name, birthday, password, gender } = parsed.data;
 
     const exists = await app.prisma.user.findFirst({
       where: { OR: [{ email }, { username }] },
@@ -60,6 +61,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   username: username.trim(),
   name: name.trim(),
   birthday,
+        gender: (gender ?? "other") as any,
         passwordHash,
         preferences: {
           create: {
@@ -79,9 +81,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/login", async (req, reply) => {
     const parsed = LoginSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
-    }
+    if (!parsed.success) return zodBadInput(reply, parsed.error);
     const { email, password } = parsed.data;
 
     const user = await app.prisma.user.findUnique({ where: { email } });
@@ -109,9 +109,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/refresh", async (req, reply) => {
     const parsed = RefreshSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
-    }
+    if (!parsed.success) return zodBadInput(reply, parsed.error);
     const { refresh } = parsed.data;
     try {
       await app.jwt.verify(refresh);
@@ -131,9 +129,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/logout", async (req, reply) => {
     const parsed = RefreshSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ code: "BAD_INPUT", message: fromZodError(parsed.error as any).message });
-    }
+    if (!parsed.success) return zodBadInput(reply, parsed.error);
     const { refresh } = parsed.data;
     await app.prisma.refreshToken.deleteMany({ where: { token: refresh } });
     return reply.code(204).send();

@@ -56,6 +56,26 @@ export async function buildApp() {
     limits: { fileSize: 10 * 1024 * 1024, files: 4 },
   });
 
+  // Tolerate empty JSON bodies when Content-Type: application/json is sent
+  // This prevents Fastify from throwing FST_ERR_CTP_EMPTY_JSON_BODY for DELETEs without a body
+  app.addContentTypeParser(
+    "application/json",
+    { parseAs: "string" },
+    function (_req, body: string, done) {
+      if (body === "" || body === undefined || body === null) {
+        // Treat empty body as undefined, letting routes handle it as missing body
+        done(null, undefined);
+        return;
+      }
+      try {
+        const json = JSON.parse(body);
+        done(null, json);
+      } catch (err) {
+        done(err as any, undefined);
+      }
+    }
+  );
+
   if (!existsSync(env.UPLOAD_DIR)) mkdirSync(env.UPLOAD_DIR, { recursive: true });
   await app.register(fastifyStatic, {
     root: join(process.cwd(), env.UPLOAD_DIR),

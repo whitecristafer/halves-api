@@ -100,6 +100,20 @@ npm run test:watch
 Tips:
 - You can point tests to a separate DB by setting `DATABASE_URL_TEST`. The test setup will use it and truncate data between tests.
 
+### Scenario coverage
+
+The suite includes end-to-end flows under `tests/`:
+- health.spec: API healthcheck
+- auth.spec: register → login → /me, refresh/logout, refresh token uniqueness
+- db.spec: DB constraints (Photo unique (userId,order), Match unique normalized pair)
+- feed.spec: comprehensive feed + interactions
+	- Preferences filtering (age, gender, onlyVerified)
+	- 1-hour de-duplication (FeedSeen) and exhaustion hint
+	- Like → mutual like → Match creation and listing
+	- Messages send/list and ordering by createdAt
+	- Blocks exclude users from feed and prevent interactions
+	- Cursor pagination across pages without duplicates
+
 ## Project structure
 
 ```

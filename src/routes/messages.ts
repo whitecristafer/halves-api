@@ -28,16 +28,15 @@ export const messagesRoutes: FastifyPluginAsync = async (app) => {
       return notFound(reply, "Match not found");
     }
 
-    let prismaCursor: any | undefined;
+    let since: Date | undefined;
     if (cursor) {
       const c = decodeCursor(cursor);
-      if (c?.createdAt) prismaCursor = { matchId_createdAt: { matchId: id, createdAt: new Date(c.createdAt) } } as any;
+      if (c?.createdAt) since = new Date(c.createdAt);
     }
 
     const messages = await app.prisma.message.findMany({
-      where: { matchId: id },
+      where: { matchId: id, ...(since ? { createdAt: { gt: since } } : {}) },
       orderBy: { createdAt: "asc" },
-      ...(prismaCursor ? { cursor: prismaCursor, skip: 1 } : {}),
       take: limit,
       select: { id: true, senderId: true, text: true, createdAt: true },
     });

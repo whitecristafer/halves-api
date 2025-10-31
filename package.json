@@ -11,6 +11,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "db:backfill-gender": "tsx prisma/backfill-gender.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
