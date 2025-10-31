@@ -138,6 +138,7 @@ Notes:
 - Blocks: users blocked by me or blocking me are hidden from feed.
 - Age filter is derived from birthday range; users without birthday are excluded from feed.
 - Non-repetition: profiles shown in the last ~30 seconds are skipped using `FeedSeen`; returned items are marked as seen. If no items remain due to this filter, `exhausted=true` is returned with `retryAfterSec≈30`.
+- Fallback: if no profiles match the user's Preferences at all, the API may return any available profiles (ignoring gender/age/verified), still excluding the current user, blocked users, and those recently seen.
 
 curl (PowerShell):
 ```
@@ -146,6 +147,10 @@ $FEED = curl.exe -H "Authorization: Bearer $ACCESS" "http://localhost:3000/feed?
 # $CUR = (curl.exe -s -H "Authorization: Bearer $ACCESS" "http://localhost:3000/feed?limit=20" | jq -r .nextCursor)
 # curl.exe -H "Authorization: Bearer $ACCESS" "http://localhost:3000/feed?limit=20&cursor=$CUR"
 ```
+
+Optional modes:
+- Sticky card: `GET /feed?mode=sticky` returns exactly one candidate and keeps returning it until a decision is made via `/like`.
+- Debug: `GET /feed?debug=1` adds diagnostic meta fields (preferences, exclusion counts, eligibleTotal, and if fallback was used).
 
 ## Swipe/like/dislike (Interaction) [DONE]
 POST /like

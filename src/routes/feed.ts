@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import { Gender as GenderEnum } from "@prisma/client";
 import { encodeCursor, decodeCursor } from "../utils/cursor";
 import { requireAuth } from "../utils/auth";
 
@@ -8,6 +9,7 @@ const QuerySchema = z.object({
   cursor: z.string().optional(),
   // Optional mode: list (default, paginated list) or sticky (single random candidate kept until decision)
   mode: z.enum(["list", "sticky"]).default("list").optional(),
+  debug: z.coerce.boolean().optional(),
 });
 
 // cursor helpers moved to ../utils/cursor
@@ -18,7 +20,7 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) {
       return reply.code(400).send({ code: "BAD_INPUT", message: "Invalid query" });
     }
-  const { limit, cursor, mode = "list" } = parsed.data as any;
+  const { limit, cursor, mode = "list", debug = false } = parsed.data as any;
     const userId = req.user?.sub as string | undefined;
     if (!userId) return reply.code(401).send({ code: "INVALID_TOKEN", message: "Unauthorized" });
 
@@ -63,6 +65,36 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
         lte: toDate,
       },
     };
+    // Fallback when no users match preferences: show any available profiles (except self/blocked/seen)
+    const whereFallback: any = {
+      id: { not: userId, notIn: Array.from(excludeIds) },
+      // Deliberately no gender/age/verified/birthday constraints
+    };
+    // Optional debug meta: compute totals to help troubleshoot empty feeds
+    // Compute eligibleTotal (ignoring recent seen and blocks) to decide whether to fallback
+    const eligibleTotal = await app.prisma.user.count({
+      where: {
+        id: { not: userId },
+        gender: { in: (showGenders as unknown as GenderEnum[]) },
+        ...(onlyVerified ? { isVerified: true } : {}),
+        birthday: { gte: fromDate, lte: toDate },
+      },
+    });
+
+    const meta: any = debug
+      ? {
+          debug: {
+            viewerId: userId,
+            prefs: { ageMin, ageMax, showGenders, onlyVerified },
+            excludeCounts: {
+              blockedByMe: blockedByMe.length,
+              blockedMe: blockedMe.length,
+              seenRecent: (seen as any[]).length,
+            },
+            eligibleTotal,
+          },
+        }
+      : {};
     // Sticky mode: return exactly one candidate; keep it until user makes a decision (via /like)
     if (mode === "sticky") {
       // 1) Try to return the last recently served candidate that has no decision yet
@@ -98,26 +130,58 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
       if (!candidate) {
         // 2) Pick a new random candidate among eligible users
         const total = await app.prisma.user.count({ where: whereBase });
+        let usedFallback = false;
         if (total === 0) {
-          return reply.send({ items: [], nextCursor: undefined, exhausted: true, retryAfterSec: Math.floor(dedupMs / 1000) });
+          // Try fallback pool
+          if (eligibleTotal === 0) {
+            const totalFallback = await app.prisma.user.count({ where: whereFallback });
+            if (totalFallback === 0) {
+              return reply.send({ items: [], nextCursor: undefined, exhausted: true, retryAfterSec: Math.floor(dedupMs / 1000), ...meta });
+            }
+            const offsetFb = Math.floor(Math.random() * totalFallback);
+            const pickedFb = await app.prisma.user.findMany({
+              where: whereFallback,
+              select: {
+                id: true,
+                username: true,
+                name: true,
+                city: true,
+                isVerified: true,
+                birthday: true,
+                photos: { select: { url: true, order: true }, orderBy: { order: "asc" } },
+              },
+              orderBy: { id: "asc" },
+              skip: offsetFb,
+              take: 1,
+            });
+            candidate = pickedFb[0] ?? null;
+            usedFallback = !!candidate;
+            if (candidate && debug) {
+              (meta.debug ??= {}).usedFallback = true;
+            }
+          } else {
+            // There are eligible users overall, but none available due to recent seen/blocks → exhausted (no fallback)
+            return reply.send({ items: [], nextCursor: undefined, exhausted: true, retryAfterSec: Math.floor(dedupMs / 1000), ...meta });
+          }
+        } else {
+          const offset = Math.floor(Math.random() * total);
+          const picked = await app.prisma.user.findMany({
+            where: whereBase,
+            select: {
+              id: true,
+              username: true,
+              name: true,
+              city: true,
+              isVerified: true,
+              birthday: true,
+              photos: { select: { url: true, order: true }, orderBy: { order: "asc" } },
+            },
+            orderBy: { id: "asc" },
+            skip: offset,
+            take: 1,
+          });
+          candidate = picked[0] ?? null;
         }
-        const offset = Math.floor(Math.random() * total);
-        const picked = await app.prisma.user.findMany({
-          where: whereBase,
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            city: true,
-            isVerified: true,
-            birthday: true,
-            photos: { select: { url: true, order: true }, orderBy: { order: "asc" } },
-          },
-          orderBy: { id: "asc" },
-          skip: offset,
-          take: 1,
-        });
-        candidate = picked[0] ?? null;
 
         if (candidate) {
           // Mark as served (so we can keep it sticky). We'll still return it until there's a decision.
@@ -131,7 +195,7 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
       }
 
       if (!candidate) {
-        return reply.send({ items: [], nextCursor: undefined, exhausted: true, retryAfterSec: Math.floor(dedupMs / 1000) });
+        return reply.send({ items: [], nextCursor: undefined, exhausted: true, retryAfterSec: Math.floor(dedupMs / 1000), ...meta });
       }
 
       const items = [
@@ -145,7 +209,7 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
           age: candidate.birthday ? Math.floor((Date.now() - candidate.birthday.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : undefined,
         },
       ];
-      return reply.send({ items, nextCursor: undefined, exhausted: false });
+      return reply.send({ items, nextCursor: undefined, exhausted: false, ...meta });
     }
 
     // List mode (default): paginated list with cursor
@@ -157,7 +221,7 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const where = whereBase;
-    const users = await app.prisma.user.findMany({
+    let users = await app.prisma.user.findMany({
       where,
       select: {
         id: true,
@@ -172,6 +236,30 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
       ...(prismaCursor ? { cursor: prismaCursor, skip: 1 } : {}),
       take: limit,
     });
+
+    // Fallback list if nothing matched preferences
+    let usedFallbackList = false;
+    if (users.length === 0 && eligibleTotal === 0) {
+      // Only fallback when truly no eligible users by preferences
+      users = await app.prisma.user.findMany({
+        where: whereFallback,
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          city: true,
+          isVerified: true,
+          birthday: true,
+          photos: { select: { url: true, order: true }, orderBy: { order: "asc" } },
+        },
+        orderBy: { id: "asc" },
+        take: limit,
+      });
+      usedFallbackList = users.length > 0;
+      if (usedFallbackList && debug) {
+        (meta.debug ??= {}).usedFallback = true;
+      }
+    }
 
     // shape + age compute
     const items = users.map((u: any) => {
@@ -211,6 +299,6 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
     const exhausted = users.length === 0;
   const retryAfterSec = exhausted ? Math.floor(dedupMs / 1000) : undefined;
 
-    return reply.send({ items, nextCursor, exhausted, retryAfterSec });
+    return reply.send({ items, nextCursor, exhausted, retryAfterSec, ...meta });
   });
 };
