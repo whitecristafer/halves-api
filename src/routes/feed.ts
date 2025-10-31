@@ -42,18 +42,27 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
   const dedupMs = 30 * 1000; // 30 seconds
   const recentCutoff = new Date(Date.now() - dedupMs);
 
-    const [blockedByMe, blockedMe, seen] = await Promise.all([
+    const [blockedByMe, blockedMe, seen, myMatches] = await Promise.all([
       app.prisma.block.findMany({ where: { blockerId: userId }, select: { blockedId: true } }),
       app.prisma.block.findMany({ where: { blockedId: userId }, select: { blockerId: true } }),
       app.prisma.feedSeen.findMany({
         where: { viewerId: userId, seenAt: { gt: recentCutoff } },
         select: { seenUserId: true },
       }),
+      app.prisma.match.findMany({
+        where: { OR: [{ userAId: userId }, { userBId: userId }] },
+        select: { userAId: true, userBId: true },
+      }),
     ]);
     const excludeIds = new Set<string>();
   blockedByMe.forEach((b: any) => excludeIds.add(b.blockedId));
   blockedMe.forEach((b: any) => excludeIds.add(b.blockerId));
     (seen as any[]).forEach((s: any) => excludeIds.add(s.seenUserId));
+    // Exclude users with whom we already have a match
+    (myMatches as any[]).forEach((m: any) => {
+      const other = m.userAId === userId ? m.userBId : m.userAId;
+      excludeIds.add(other);
+    });
 
     const whereBase: any = {
       id: { not: userId, notIn: Array.from(excludeIds) },
@@ -90,6 +99,7 @@ export const feedRoutes: FastifyPluginAsync = async (app) => {
               blockedByMe: blockedByMe.length,
               blockedMe: blockedMe.length,
               seenRecent: (seen as any[]).length,
+              matchedPeers: (myMatches as any[]).length,
             },
             eligibleTotal,
           },
